@@ -15,7 +15,7 @@ button.secondary{background:#4b5563}
 button.small{padding:8px;width:auto;border-radius:6px}
 #backup-codes-text{height:140px}
 #app{display:flex;height:100vh}
-.sidebar{width:280px;background:#0f1724;padding:22px;display:flex;flex-direction:column}
+.sidebar{width:320px;background:#0f1724;padding:22px;display:flex;flex-direction:column}
 .sidebar h2{margin:0 0 18px 0;font-size:1.25rem;color:#cbd5e1;display:flex;justify-content:space-between;align-items:center}
 #section-list{list-style:none;padding:0;flex:1;overflow-y:auto;margin-bottom:12px}
 #section-list li{padding:10px;margin-bottom:8px;background:#0b1220;border-radius:8px;cursor:pointer;transition:all .12s;color:#cbd5e1;position:relative}
@@ -39,125 +39,448 @@ ul li{cursor:pointer;margin-bottom:6px;padding:6px;border-radius:6px;background:
 .slider:before{position:absolute;content:"";height:20px;width:20px;left:4px;bottom:4px;background:white;transition:.4s;border-radius:50%}
 input:checked + .slider{background:#2563eb}
 input:checked + .slider:before{transform:translateX(20px)}
+.server-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.server-row input{padding:8px;border-radius:8px;border:none;background:#0b1220;color:#cbd5e1}
+.server-row button{padding:8px;border-radius:8px}
 </style>
 </head>
 <body>
 <div id="login-view" class="hidden">
-<div class="form-container">
-<h2>Login</h2>
-<input id="login-username" placeholder="Username">
-<input id="login-password" type="password" placeholder="Password">
-<button id="login-btn">Login</button>
-<div class="footer-links">
-<button id="open-signup-btn" class="small secondary">Sign up</button>
-<button id="open-recover-btn" class="small secondary">Recover (backup code)</button>
+  <div class="form-container">
+    <h2>Login</h2>
+    <input id="login-username" placeholder="Username">
+    <input id="login-password" type="password" placeholder="Password">
+    <button id="login-btn">Login</button>
+    <div class="footer-links">
+      <button id="open-signup-btn" class="small secondary">Sign up</button>
+      <button id="open-recover-btn" class="small secondary">Recover (backup code)</button>
+    </div>
+  </div>
 </div>
-</div>
-</div>
+
 <div id="signup-view" class="hidden">
-<div class="form-container">
-<h2>Create account</h2>
-<input id="signup-username" placeholder="Choose a username">
-<input id="signup-password" type="password" placeholder="Choose a password">
-<button id="signup-btn">Create account</button>
-<div id="backup-codes-container" style="display:none;width:100%;max-width:900px">
-<p style="margin:0 0 8px 0;color:#9fb4d8">One-time backup codes - copy & store them safely</p>
-<textarea id="backup-codes-text" readonly></textarea>
-<div class="actions"><button id="copy-codes-btn" class="small">Copy codes</button><button id="signup-done-btn" class="small secondary">Done</button></div>
+  <div class="form-container">
+    <h2>Create account</h2>
+    <input id="signup-username" placeholder="Choose a username">
+    <input id="signup-password" type="password" placeholder="Choose a password">
+    <button id="signup-btn">Create account</button>
+
+    <div id="backup-codes-container" style="display:none;width:100%;max-width:900px">
+      <p style="margin:0 0 8px 0;color:#9fb4d8">One-time backup codes - copy & store them safely</p>
+      <textarea id="backup-codes-text" readonly></textarea>
+      <div class="actions">
+        <button id="copy-codes-btn" class="small">Copy codes</button>
+        <button id="signup-done-btn" class="small secondary">Done</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;color:#9fb4d8;font-size:0.9rem">Note: your first password is used as your encryption key on the server.</div>
+  </div>
 </div>
-</div>
-</div>
+
 <div id="recover-view" class="hidden">
-<div class="form-container">
-<h2>Recover account</h2>
-<input id="recover-code" placeholder="Enter a backup code">
-<button id="recover-btn">Lookup</button>
-<div id="recover-result" style="display:none;width:100%;max-width:900px">
-<p style="margin:0 0 8px 0;color:#9fb4d8">Edit username or password then Save</p>
-<input id="recover-username" placeholder="Username">
-<input id="recover-password" placeholder="New password">
-<div class="actions"><button id="recover-save-btn">Save</button><button id="recover-cancel-btn" class="small secondary">Cancel</button></div>
+  <div class="form-container">
+    <h2>Recover account</h2>
+    <input id="recover-code" placeholder="Enter a backup code">
+    <button id="recover-btn">Lookup</button>
+
+    <div id="recover-result" style="display:none;width:100%;max-width:900px">
+      <p style="margin:0 0 8px 0;color:#9fb4d8">Edit username or password then Save</p>
+      <input id="recover-username" placeholder="Username">
+      <input id="recover-password" placeholder="New password">
+      <div class="actions">
+        <button id="recover-save-btn">Save</button>
+        <button id="recover-cancel-btn" class="small secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
-</div>
-</div>
+
 <div id="manager-view" class="hidden" style="display:flex;height:100vh">
-<div class="sidebar">
-<h2>Sections <label class="toggle-switch"><input type="checkbox" id="toggle-values"><span class="slider"></span></label></h2>
-<ul id="section-list"></ul>
-<div style="margin-top:12px" class="actions">
-<button id="add-section-btn" class="small">+ Section</button>
-<button id="logout-btn" class="small secondary">Logout</button>
+  <div class="sidebar">
+    <div class="server-row">
+      <input id="server-url-input" placeholder="Server URL (optional)">
+      <button id="save-server-btn" class="small">Save</button>
+    </div>
+
+    <h2>Sections <label class="toggle-switch"><input type="checkbox" id="toggle-values"><span class="slider"></span></label></h2>
+    <ul id="section-list"></ul>
+    <div style="margin-top:12px" class="actions">
+      <button id="add-section-btn" class="small">+ Section</button>
+      <button id="logout-btn" class="small secondary">Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <h2 id="section-title" style="margin-top:0">Select a Section</h2>
+    <table id="fields-table">
+      <thead><tr><th style="width:220px">Field</th><th>Values</th><th style="width:120px">Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="actions">
+      <button id="add-field-btn">+ Field</button>
+      <button id="delete-section-btn" class="secondary">Delete Section</button>
+    </div>
+  </div>
 </div>
-</div>
-<div class="main">
-<h2 id="section-title" style="margin-top:0">Select a Section</h2>
-<table id="fields-table">
-<thead><tr><th style="width:220px">Field</th><th>Values</th><th style="width:120px">Actions</th></tr></thead>
-<tbody></tbody>
-</table>
-<div class="actions">
-<button id="add-field-btn">+ Field</button>
-<button id="delete-section-btn" class="secondary">Delete Section</button>
-</div>
-</div>
-</div>
+
 <div id="modal-add-section" class="modal">
-<div class="modal-content">
-<h3 style="margin:0">New Section</h3>
-<input id="new-section-name" placeholder="Section name">
-<div class="actions"><button id="confirm-add-section">Create</button><button onclick="closeModal('modal-add-section')" class="small secondary">Cancel</button></div>
+  <div class="modal-content">
+    <h3 style="margin:0">New Section</h3>
+    <input id="new-section-name" placeholder="Section name">
+    <div class="actions"><button id="confirm-add-section">Create</button><button onclick="closeModal('modal-add-section')" class="small secondary">Cancel</button></div>
+  </div>
 </div>
-</div>
+
 <div id="modal-add-field" class="modal">
-<div class="modal-content">
-<h3 style="margin:0">New Field</h3>
-<input id="new-field-name" placeholder="Field name">
-<input id="new-field-value" placeholder="Initial value (optional)">
-<div class="actions"><button id="confirm-add-field">Add</button><button onclick="closeModal('modal-add-field')" class="small secondary">Cancel</button></div>
+  <div class="modal-content">
+    <h3 style="margin:0">New Field</h3>
+    <input id="new-field-name" placeholder="Field name">
+    <input id="new-field-value" placeholder="Initial value (optional)">
+    <div class="actions"><button id="confirm-add-field">Add</button><button onclick="closeModal('modal-add-field')" class="small secondary">Cancel</button></div>
+  </div>
 </div>
-</div>
+
 <div id="modal-edit-value" class="modal">
-<div class="modal-content">
-<h3 style="margin:0">Edit Value</h3>
-<input id="edit-value-input" placeholder="Value">
-<div class="actions"><button id="confirm-edit-value-btn">Save</button><button onclick="closeModal('modal-edit-value')" class="small secondary">Cancel</button></div>
+  <div class="modal-content">
+    <h3 style="margin:0">Edit Value</h3>
+    <input id="edit-value-input" placeholder="Value">
+    <div class="actions"><button id="confirm-edit-value-btn">Save</button><button onclick="closeModal('modal-edit-value')" class="small secondary">Cancel</button></div>
+  </div>
 </div>
-</div>
+
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-let SERVER="", token=localStorage.getItem('token'), sections={}, currentSection=null, editKey=null, editIndex=null, showValues=false, encryptionKey=null
-const te=new TextEncoder(), td=new TextDecoder()
-async function getKey(password){encryptionKey=await crypto.subtle.importKey("raw",te.encode(password),"AES-GCM",false,["encrypt","decrypt"])}
-async function encrypt(plaintext){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},encryptionKey,te.encode(plaintext));return {ciphertext:btoa(String.fromCharCode(...new Uint8Array(ct))),iv:btoa(String.fromCharCode(...iv))}}
-async function decrypt(ciphertextB64,ivB64){const ct=Uint8Array.from(atob(ciphertextB64),c=>c.charCodeAt(0)).buffer;const iv=Uint8Array.from(atob(ivB64),c=>c.charCodeAt(0));return td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},encryptionKey,ct))}
-async function fetchServer(){SERVER=(await(await fetch("https://raw.githubusercontent.com/Infernalblight/BossSquritle-Data-Manager/refs/heads/main/server.txt")).text()).trim()}
-function showView(id){document.querySelectorAll('[id$="-view"]').forEach(v=>v.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
+/*
+  Updated client to match API.js backend:
+   - /signup -> returns {token, backup_codes}
+   - /login -> returns {token}
+   - /recover -> POST {backupCode} returns {username,backup_codes}
+   - /recover/edit -> POST {backupCode,newUsername,newPassword}
+   - /sections -> GET returns {data: {...}}
+   - /section -> POST {sectionName, ciphertext}
+   - /section -> DELETE (body {sectionName})
+   - Authorization: Bearer <token>
+*/
+
+let SERVER = ''
+let token = localStorage.getItem('token') || null
+let sections = {}
+let currentSection = null
+let editKey = null, editIndex = null
+let showValues = false
+
+// Try to determine server URL in order:
+// 1) /server.txt on same host (if present), 2) localStorage.server, 3) location.origin
+async function resolveServer(){
+  // try server.txt first (useful when you host file)
+  try {
+    const res = await fetch('/server.txt')
+    if(res.ok){
+      const t = (await res.text()).trim()
+      if(t) return t
+    }
+  } catch(e){ /* ignore */ }
+
+  // next, localStorage override
+  const ls = localStorage.getItem('server')
+  if(ls) return ls
+
+  // fallback to current origin (useful when backend is same host)
+  return window.location.origin
+}
+
+// Save server URL from input (and to localStorage)
+document.getElementById('save-server-btn').onclick = ()=>{
+  const val = document.getElementById('server-url-input').value.trim()
+  if(val){
+    localStorage.setItem('server', val)
+    SERVER = val
+    alert('Server URL saved: ' + val)
+  } else {
+    localStorage.removeItem('server')
+    SERVER = window.location.origin
+    alert('Server URL cleared. Using origin: ' + SERVER)
+  }
+}
+
+// show/hide views
+function showView(id){
+  document.querySelectorAll('[id$="-view"]').forEach(v=>v.classList.add('hidden'))
+  document.getElementById(id).classList.remove('hidden')
+}
 function showModal(id){document.getElementById(id).style.display='flex'}
 function closeModal(id){document.getElementById(id).style.display='none'}
-async function requireLogin(){if(token){showView('manager-view');await refreshSections();return}showView('login-view')}
-document.getElementById("login-btn").onclick=async()=>{const u=document.getElementById("login-username").value;const p=document.getElementById("login-password").value;if(!u||!p)return;try{const res=await axios.post(`${SERVER}/login`,{username:u,password:p});token=res.data.token;localStorage.setItem('token',token);await getKey(p);showView('manager-view');await refreshSections()}catch(e){alert('Invalid credentials')}}
+
+// require login or go to manager and refresh sections
+async function requireLogin(){
+  if(token){
+    showView('manager-view')
+    await refreshSections()
+    return
+  }
+  showView('login-view')
+}
+
+// LOGIN
+document.getElementById("login-btn").onclick=async()=>{
+  const u=document.getElementById("login-username").value.trim()
+  const p=document.getElementById("login-password").value
+  if(!u||!p) return alert('Missing fields')
+  try{
+    const res = await axios.post(`${SERVER}/login`,{username:u,password:p})
+    token = res.data.token
+    localStorage.setItem('token', token)
+    showView('manager-view')
+    await refreshSections()
+  }catch(e){
+    console.error(e)
+    alert(e?.response?.data?.error || 'Login failed')
+  }
+}
+
+// NAV between auth views
 document.getElementById("open-signup-btn").onclick=()=>showView('signup-view')
 document.getElementById("open-recover-btn").onclick=()=>showView('recover-view')
-document.getElementById("signup-btn").onclick=async()=>{const u=document.getElementById("signup-username").value;const p=document.getElementById("signup-password").value;if(!u||!p)return;try{const res=await axios.post(`${SERVER}/signup`,{username:u,password:p});token=res.data.token;localStorage.setItem('token',token);document.getElementById('backup-codes-text').value=res.data.backup_codes.join('\n');document.getElementById('backup-codes-container').style.display='block';await getKey(p);showView('manager-view');await refreshSections()}catch(e){alert('Sign up failed')}}
-document.getElementById("signup-done-btn").onclick=()=>showView('manager-view')
-document.getElementById("recover-btn").onclick=async()=>{const code=document.getElementById("recover-code").value;if(!code)return;try{const res=await axios.post(`${SERVER}/recover`,{backupCode:code});document.getElementById('recover-username').value=res.data.username;document.getElementById('recover-password').value='';document.getElementById('recover-result').style.display='block';document.getElementById('recover-save-btn').onclick=async()=>{const newU=document.getElementById('recover-username').value;const newP=document.getElementById('recover-password').value;await axios.post(`${SERVER}/recover/edit`,{backupCode:code,newUsername:newU,newPassword:newP});alert('Saved');showView('login-view')}};document.getElementById('recover-cancel-btn').onclick=()=>showView('login-view')}catch(e){alert('Invalid backup code')}}
-document.getElementById("logout-btn").onclick=()=>{token=null;localStorage.removeItem('token');encryptionKey=null;showView('login-view')}
-async function refreshSections(){const res=await axios.get(`${SERVER}/sections`,{headers:{Authorization:`Bearer ${token}`}});sections={};for(let k in res.data.data){const s=res.data.data[k];const obj=JSON.parse(atob(s));sections[k]=obj}const list=document.getElementById("section-list");list.innerHTML='';for(let sec in sections){const li=document.createElement("li");li.textContent=sec;const content=document.createElement('div');content.className='section-content';li.appendChild(content);li.onclick=()=>selectSection(sec,li);list.appendChild(li)}}
-function renderFields(data){const tbody=document.querySelector("#fields-table tbody");tbody.innerHTML='';for(let k in data){const tr=document.createElement("tr");const tdKey=document.createElement("td");tdKey.textContent=k;const tdVal=document.createElement("td");const ul=document.createElement("ul");data[k].forEach((v,i)=>{const li=document.createElement("li");li.textContent=showValues?v:'*'.repeat(8);li.onclick=()=>openEditValueModal(k,i);ul.appendChild(li)});const addBtn=document.createElement("button");addBtn.textContent='+';addBtn.className='small';addBtn.onclick=()=>openAddValueModal(k);tdVal.appendChild(ul);tdVal.appendChild(addBtn);const tdActions=document.createElement("td");const delField=document.createElement("button");delField.textContent='Delete Field';delField.className='small secondary';delField.onclick=()=>deleteField(k);tdActions.appendChild(delField);tr.appendChild(tdKey);tr.appendChild(tdVal);tr.appendChild(tdActions);tbody.appendChild(tr)}}
-async function selectSection(name,li){if(currentSection===name){li.classList.toggle('active');if(!li.classList.contains('active')){document.getElementById('section-title').textContent='Select a Section';document.querySelector('#fields-table tbody').innerHTML='';currentSection=null}return}currentSection=name;document.getElementById('section-title').textContent=name;Array.from(document.getElementById('section-list').children).forEach(c=>c.classList.remove('active'));li.classList.add('active');renderFields(sections[name])}
-async function saveSection(name,data){const ct=await encrypt(JSON.stringify(data));const payload=btoa(JSON.stringify(ct));await axios.post(`${SERVER}/section`,{sectionName:name,ciphertext:payload},{headers:{Authorization:`Bearer ${token}`}});await refreshSections();const item=Array.from(document.getElementById('section-list').children).find(li=>li.textContent===name);if(item) selectSection(name,item)}
+
+// SIGNUP
+document.getElementById("signup-btn").onclick=async()=>{
+  const u=document.getElementById("signup-username").value.trim()
+  const p=document.getElementById("signup-password").value
+  if(!u||!p) return alert('Missing fields')
+  try{
+    const res = await axios.post(`${SERVER}/signup`,{username:u,password:p})
+    // server returns token and backup_codes
+    token = res.data.token
+    localStorage.setItem('token', token)
+    // show backup codes to the user, but keep them on signup view until they click Done
+    if(Array.isArray(res.data.backup_codes)){
+      document.getElementById('backup-codes-text').value = res.data.backup_codes.join('\n')
+      document.getElementById('backup-codes-container').style.display = 'block'
+      document.getElementById('copy-codes-btn').onclick = ()=>navigator.clipboard.writeText(res.data.backup_codes.join('\n'))
+    } else {
+      document.getElementById('backup-codes-container').style.display = 'none'
+    }
+    // don't auto-switch to manager view — wait for user to click Done
+  } catch(e){
+    console.error(e)
+    alert(e?.response?.data?.error || 'Sign up failed')
+  }
+}
+document.getElementById("signup-done-btn").onclick=async()=>{
+  // user confirmed they copied codes and are ready
+  showView('manager-view')
+  await refreshSections()
+}
+
+// RECOVER lookup
+document.getElementById("recover-btn").onclick=async()=>{
+  const code=document.getElementById("recover-code").value.trim()
+  if(!code) return alert('Enter a backup code')
+  try{
+    const res = await axios.post(`${SERVER}/recover`,{backupCode:code})
+    document.getElementById('recover-username').value = res.data.username || ''
+    document.getElementById('recover-password').value = ''
+    document.getElementById('recover-result').style.display = 'block'
+    // bind save handler
+    document.getElementById('recover-save-btn').onclick = async ()=>{
+      const newU = document.getElementById('recover-username').value.trim()
+      const newP = document.getElementById('recover-password').value
+      try{
+        await axios.post(`${SERVER}/recover/edit`,{backupCode:code,newUsername:newU,newPassword:newP})
+        alert('Saved')
+        showView('login-view')
+      }catch(err){
+        console.error(err)
+        alert(err?.response?.data?.error || 'Save failed')
+      }
+    }
+    document.getElementById('recover-cancel-btn').onclick = ()=>showView('login-view')
+  }catch(e){
+    console.error(e)
+    alert(e?.response?.data?.error || 'Invalid backup code')
+  }
+}
+
+// LOGOUT
+document.getElementById("logout-btn").onclick=()=>{
+  token=null; localStorage.removeItem('token'); showView('login-view')
+}
+
+// refresh sections from server
+async function refreshSections(){
+  if(!token){
+    showView('login-view'); return
+  }
+  try{
+    const res = await axios.get(`${SERVER}/sections`,{headers:{Authorization:`Bearer ${token}`}})
+    sections = res.data.data || {}
+    const list=document.getElementById("section-list")
+    list.innerHTML=''
+    for(let sec in sections){
+      const li=document.createElement("li")
+      li.textContent=sec
+      const content=document.createElement('div'); content.className='section-content'
+      li.appendChild(content)
+      li.onclick=()=>selectSection(sec,li)
+      list.appendChild(li)
+    }
+    // if current section still exists, re-render it
+    if(currentSection && sections[currentSection]){
+      const item = Array.from(document.getElementById('section-list').children).find(li=>li.textContent.trim()===currentSection)
+      if(item) selectSection(currentSection,item)
+      else {
+        currentSection = null
+        document.getElementById('section-title').textContent='Select a Section'
+        document.querySelector('#fields-table tbody').innerHTML=''
+      }
+    }
+  }catch(e){
+    console.error(e)
+    const status = e?.response?.status
+    if(status === 401 || status === 403){
+      alert('Session expired or unauthorized. Please login again.')
+      token=null; localStorage.removeItem('token'); showView('login-view')
+    } else {
+      alert('Failed to fetch sections: ' + (e?.response?.data?.error || e.message))
+    }
+  }
+}
+
+// render fields into the table (data is plain object of arrays)
+function renderFields(data){
+  const tbody=document.querySelector("#fields-table tbody")
+  tbody.innerHTML=''
+  for(let k in data){
+    const tr=document.createElement("tr")
+    const tdKey=document.createElement("td"); tdKey.textContent=k
+    const tdVal=document.createElement("td")
+    const ul=document.createElement("ul")
+    (Array.isArray(data[k]) ? data[k] : []).forEach((v,i)=>{
+      const li=document.createElement("li")
+      li.textContent=showValues ? v : '*'.repeat(8)
+      li.onclick=()=>openEditValueModal(k,i)
+      ul.appendChild(li)
+    })
+    const addBtn=document.createElement("button"); addBtn.textContent='+'; addBtn.className='small'
+    addBtn.onclick=()=>openAddValueModal(k)
+    tdVal.appendChild(ul); tdVal.appendChild(addBtn)
+    const tdActions=document.createElement("td")
+    const delField=document.createElement("button"); delField.textContent='Delete Field'; delField.className='small secondary'
+    delField.onclick=()=>deleteField(k)
+    tdActions.appendChild(delField)
+    tr.appendChild(tdKey); tr.appendChild(tdVal); tr.appendChild(tdActions)
+    tbody.appendChild(tr)
+  }
+}
+
+// select section -> decode ciphertext stored in sections map
+async function selectSection(name, li){
+  if(currentSection===name){
+    li.classList.toggle('active')
+    if(!li.classList.contains('active')){
+      document.getElementById('section-title').textContent='Select a Section'
+      document.querySelector('#fields-table tbody').innerHTML=''
+      currentSection=null
+    }
+    return
+  }
+  currentSection=name
+  document.getElementById('section-title').textContent=name
+  Array.from(document.getElementById('section-list').children).forEach(c=>c.classList.remove('active'))
+  li.classList.add('active')
+  const raw = sections[name] || btoa(JSON.stringify({}))
+  try{
+    const data = JSON.parse(atob(raw))
+    renderFields(data)
+  }catch(err){
+    console.error('Failed to parse section data',err)
+    renderFields({})
+  }
+}
+
+// save section -> POST /section {sectionName, ciphertext}
+async function saveSection(name,data){
+  const cipher = btoa(JSON.stringify(data))
+  try{
+    await axios.post(`${SERVER}/section`,{sectionName:name,ciphertext:cipher},{headers:{Authorization:`Bearer ${token}`}})
+    await refreshSections()
+    // re-select the section if available
+    const item = Array.from(document.getElementById('section-list').children).find(li=>li.textContent.trim()===name)
+    if(item) selectSection(name,item)
+  }catch(e){
+    console.error(e)
+    alert(e?.response?.data?.error || 'Failed to save section')
+  }
+}
+
+// add section modal
 document.getElementById('add-section-btn').onclick=()=>showModal('modal-add-section')
-document.getElementById('confirm-add-section').onclick=async()=>{const name=document.getElementById('new-section-name').value;if(!name)return;await saveSection(name,{});closeModal('modal-add-section')}
+document.getElementById('confirm-add-section').onclick=async()=>{
+  const name=document.getElementById('new-section-name').value.trim()
+  if(!name) return alert('Enter a section name')
+  await saveSection(name,{})
+  closeModal('modal-add-section')
+}
+
+// add field modal
 document.getElementById('add-field-btn').onclick=()=>showModal('modal-add-field')
-document.getElementById('confirm-add-field').onclick=async()=>{const key=document.getElementById('new-field-name').value;const val=document.getElementById('new-field-value').value;if(!key)return;const data=sections[currentSection];data[key]=val?[val]:[];await saveSection(currentSection,data);closeModal('modal-add-field')}
-document.getElementById('delete-section-btn').onclick=async()=>{if(!currentSection)return;await axios.delete(`${SERVER}/section`,{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}});currentSection=null;document.getElementById('section-title').textContent='Select a Section';document.querySelector('#fields-table tbody').innerHTML='';await refreshSections()}
-function openEditValueModal(field,idx){editKey=field;editIndex=idx;document.getElementById('edit-value-input').value=sections[currentSection][field][idx];showModal('modal-edit-value')}
-document.getElementById('confirm-edit-value-btn').onclick=async()=>{const v=document.getElementById('edit-value-input').value;sections[currentSection][editKey][editIndex]=v;await saveSection(currentSection,sections[currentSection]);closeModal('modal-edit-value')}
-function openAddValueModal(field){const input=document.createElement('input');input.placeholder='New value';input.style.marginBottom='8px';const mm=document.createElement('div');mm.className='modal-content';mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`;mm.appendChild(input);const add=document.createElement('button');add.textContent='Add';add.onclick=async()=>{const v=input.value;if(!v)return;sections[currentSection][field].push(v);await saveSection(currentSection,sections[currentSection]);document.body.removeChild(overlay)};const cancel=document.createElement('button');cancel.textContent='Cancel';cancel.className='small secondary';cancel.onclick=()=>document.body.removeChild(overlay);mm.appendChild(add);mm.appendChild(cancel);const overlay=document.createElement('div');overlay.style.position='fixed';overlay.style.top=0;overlay.style.left=0;overlay.style.width='100%';overlay.style.height='100%';overlay.style.background='rgba(0,0,0,0.7)';overlay.style.display='flex';overlay.style.justifyContent='center';overlay.style.alignItems='center';overlay.appendChild(mm);document.body.appendChild(overlay)}
-async function deleteField(field){delete sections[currentSection][field];await saveSection(currentSection,sections[currentSection])}
-document.getElementById('toggle-values').onchange=function(){showValues=this.checked;refreshSections()}
-fetchServer().then(requireLogin)
-</script>
-</body>
-</html>
-  
+document.getElementById('confirm-add-field').onclick=async()=>{
+  const key=document.getElementById('new-field-name').value.trim()
+  const val=document.getElementById('new-field-value').value
+  if(!key) return alert('Enter a field name')
+  const raw = sections[currentSection] || btoa(JSON.stringify({}))
+  const data = JSON.parse(atob(raw))
+  // only set value array if provided; otherwise empty array
+  data[key] = val ? [val] : []
+  await saveSection(currentSection,data)
+  closeModal('modal-add-field')
+}
+
+// delete section
+document.getElementById('delete-section-btn').onclick=async()=>{
+  if(!currentSection) return alert('No section selected')
+  try{
+    await axios.delete(`${SERVER}/section`,{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}})
+    currentSection=null
+    document.getElementById('section-title').textContent='Select a Section'
+    document.querySelector('#fields-table tbody').innerHTML=''
+    await refreshSections()
+  }catch(e){
+    console.error(e)
+    alert(e?.response?.data?.error || 'Failed to delete section')
+  }
+}
+
+// edit value flow
+function openEditValueModal(field,idx){
+  editKey=field; editIndex=idx
+  const raw = sections[currentSection] || btoa(JSON.stringify({}))
+  const data = JSON.parse(atob(raw))
+  document.getElementById('edit-value-input').value = data[field][idx] || ''
+  showModal('modal-edit-value')
+}
+document.getElementById('confirm-edit-value-btn').onclick=async()=>{
+  const v=document.getElementById('edit-value-input').value
+  const raw = sections[currentSection] || btoa(JSON.stringify({}))
+  const data = JSON.parse(atob(raw))
+  data[editKey][editIndex] = v
+  await saveSection(currentSection,data)
+  closeModal('modal-edit-value')
+}
+
+// add a single value interactively
+function openAddValueModal(field){
+  const input=document.createElement('input'); input.placeholder='New value'; input.style.marginBottom='8px'
+  const mm=document.createElement('div'); mm.className='modal-content'; mm.style.width='420px'
+  mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`
+  mm.appendChild(input)
+  const add=document.createElement('button'); add.textContent='Add'; add.onclick=async()=>{
+    const v=input.value
+    if(!v) return
+    const raw=sections[currentSection]||btoa(JSON.stringify({}))
+    const data=JSON.parse(atob(raw))
+    data[field] = data[field] || []
+    data[field].push(v)
+    awa
