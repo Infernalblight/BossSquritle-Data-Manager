@@ -125,8 +125,7 @@ input:checked + .slider:before{transform:translateX(20px)}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-// --- Backend base URL selection ---
-// Uses query param ?server=https://host:port or defaults to same-origin
+
 const qp = new URLSearchParams(location.search)
 let SERVER = qp.get('server') || `${location.protocol}//${location.host}`
 
@@ -143,7 +142,6 @@ function closeModal(id){document.getElementById(id).style.display='none'}
 
 async function requireLogin(){if(token){showView('manager-view');await refreshSections();return}showView('login-view')}
 
-// --- Auth ---
 document.getElementById('login-btn').onclick = async () => {
   const u = document.getElementById('login-username').value.trim()
   const p = document.getElementById('login-password').value
@@ -168,7 +166,6 @@ document.getElementById('signup-btn').onclick = async () => {
     const res = await axios.post(`${SERVER}/signup`,{username:u,password:p})
     token = res.data.token
     localStorage.setItem('token', token)
-    // Show backup codes returned by new backend
     if(Array.isArray(res.data.backup_codes)){
       document.getElementById('backup-codes-text').value = res.data.backup_codes.join('\n')
       document.getElementById('backup-codes-container').style.display = 'block'
@@ -181,7 +178,6 @@ document.getElementById('signup-btn').onclick = async () => {
 
 document.getElementById('signup-done-btn').onclick = ()=>showView('manager-view')
 
-// --- Recover ---
 document.getElementById('recover-btn').onclick = async () => {
   const code = document.getElementById('recover-code').value.trim()
   if(!code) return
@@ -201,10 +197,8 @@ document.getElementById('recover-btn').onclick = async () => {
   }catch(e){alert('Invalid backup code')}
 }
 
-// --- Logout ---
 document.getElementById('logout-btn').onclick = () => {token=null;localStorage.removeItem('token');showView('login-view')}
 
-// --- Sections CRUD ---
 async function refreshSections(){
   const res = await axios.get(`${SERVER}/sections`,{headers:{Authorization:`Bearer ${token}`}})
   sections = res.data.data || {}
@@ -347,11 +341,9 @@ async function deleteField(field){
   await saveSection(currentSection, data)
 }
 
-// mask/unmask values without changing storage
 
 document.getElementById('toggle-values').onchange = function(){
   showValues = this.checked
-  // re-render current section from cached data
   if(currentSection){
     const raw = sections[currentSection] || btoa(JSON.stringify({}))
     renderFields(JSON.parse(atob(raw)))
@@ -360,7 +352,6 @@ document.getElementById('toggle-values').onchange = function(){
   }
 }
 
-// Boot
 requireLogin()
 </script>
 </body>
