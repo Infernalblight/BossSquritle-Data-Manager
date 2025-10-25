@@ -125,9 +125,7 @@ input:checked + .slider:before{transform:translateX(20px)}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-
-const qp = new URLSearchParams(location.search)
-let SERVER = qp.get('server') || `${location.protocol}//${location.host}`
+let SERVER = ""; async function fetchServer(){SERVER=(await (await fetch("https://raw.githubusercontent.com/Infernalblight/BossSquritle-Data-Manager/refs/heads/main/server.txt")).text()).trim()}
 
 let token = localStorage.getItem('token')
 let sections = {}
@@ -352,7 +350,7 @@ document.getElementById('toggle-values').onchange = function(){
   }
 }
 
-requireLogin()
+fetchServer().then(requireLogin)
 </script>
 </body>
 </html>
