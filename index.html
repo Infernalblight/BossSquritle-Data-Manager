@@ -125,177 +125,261 @@ input:checked + .slider:before{transform:translateX(20px)}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script>
-let SERVER="", token=localStorage.getItem('token'), sections={}, currentSection=null, editKey=null, editIndex=null, showValues=false
-async function fetchServer(){SERVER=(await(await fetch("https://raw.githubusercontent.com/Infernalblight/BossSquritle-Data-Manager/refs/heads/main/server.txt")).text()).trim()}
-function showView(id){document.querySelectorAll('[id$="-view"]').forEach(v=>v.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
-function showModal(id){document.getElementById(id).style.display='flex'}
-function closeModal(id){document.getElementById(id).style.display='none'}
-async function requireLogin(){if(token){showView('manager-view');await refreshSections();return}showView('login-view')}
-document.getElementById("login-btn").onclick=async()=>{
-  const u=document.getElementById("login-username").value
-  const p=document.getElementById("login-password").value
-  if(!u||!p) return
-  try{const res=await axios.post(`${SERVER}/login`,{username:u,password:p});token=res.data.token;localStorage.setItem('token',token);showView('manager-view');await refreshSections()}catch(e){alert('Invalid credentials')}
+let SERVER="";
+async function fetchServer(){
+  const txt=await (await fetch("https://raw.githubusercontent.com/Infernalblight/BossSquritle-Data-Manager/refs/heads/main/server.txt",{cache:"no-store"})).text();
+  SERVER=txt.replace(/\r?\n/g,"").trim().replace(/\/+$/,"");
+  try{await axios.get(SERVER+"/sections",{headers:{Authorization:"Bearer invalid",'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}})}catch(e){}
 }
-document.getElementById("open-signup-btn").onclick=()=>showView('signup-view')
-document.getElementById("open-recover-btn").onclick=()=>showView('recover-view')
-document.getElementById("signup-btn").onclick=async()=>{
-  const u=document.getElementById("signup-username").value
-  const p=document.getElementById("signup-password").value
-  if(!u||!p) return
-  try{const res=await axios.post(`${SERVER}/signup`,{username:u,password:p});token=res.data.token;localStorage.setItem('token',token);document.getElementById('backup-codes-text').value=res.data.backup_codes.join('\n');document.getElementById('backup-codes-container').style.display='block';document.getElementById('copy-codes-btn').onclick=()=>navigator.clipboard.writeText(res.data.backup_codes.join('\n'));showView('manager-view');await refreshSections()}catch(e){alert('Sign up failed')}
+let token=localStorage.getItem("token");
+let sections={};
+let currentSection=null;
+let editKey=null;
+let editIndex=null;
+let showValues=false;
+function showView(id){document.querySelectorAll('[id$="-view"]').forEach(v=>v.classList.add("hidden"));document.getElementById(id).classList.remove("hidden")}
+function showModal(id){document.getElementById(id).style.display="flex"}
+function closeModal(id){document.getElementById(id).style.display="none"}
+function setSectionsAndRenderList(preserve=true){
+  const list=document.getElementById("section-list");
+  const active=currentSection;
+  list.innerHTML="";
+  for(const sec in sections){
+    const li=document.createElement("li");
+    li.textContent=sec;
+    li.onclick=()=>selectSection(sec,li);
+    list.appendChild(li);
+    if(preserve&&sec===active){li.classList.add("active")}
+  }
+  if(preserve&&active&&sections[active]){
+    document.getElementById("section-title").textContent=active;
+    renderFields(JSON.parse(atob(sections[active])));
+  }
 }
-document.getElementById("signup-done-btn").onclick=()=>showView('manager-view')
-document.getElementById("recover-btn").onclick=async()=>{
-  const code=document.getElementById("recover-code").value
-  if(!code) return
-  try{
-    const res=await axios.post(`${SERVER}/recover`,{backupCode:code})
-    document.getElementById('recover-username').value=res.data.username
-    document.getElementById('recover-password').value=''
-    document.getElementById('recover-result').style.display='block'
-    document.getElementById('recover-save-btn').onclick=async()=>{
-      const newU=document.getElementById('recover-username').value
-      const newP=document.getElementById('recover-password').value
-      await axios.post(`${SERVER}/recover/edit`,{backupCode:code,newUsername:newU,newPassword:newP})
-      alert('Saved');showView('login-view')
-    }
-    document.getElementById('recover-cancel-btn').onclick=()=>showView('login-view')
-  }catch(e){alert('Invalid backup code')}
-}
-document.getElementById("logout-btn").onclick=()=>{token=null;localStorage.removeItem('token');showView('login-view')}
 async function refreshSections(){
-  const res=await axios.get(`${SERVER}/sections`,{headers:{Authorization:`Bearer ${token}`}})
-  sections=res.data.data||{}
-  const list=document.getElementById("section-list")
-  list.innerHTML=''
-  for(let sec in sections){
-    const li=document.createElement("li")
-    li.textContent=sec
-    const content=document.createElement('div'); content.className='section-content'
-    li.appendChild(content)
-    li.onclick=()=>selectSection(sec,li)
-    list.appendChild(li)
-  }
+  const res=await axios.get(SERVER+"/sections",{headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}});
+  sections=res.data.data||{};
+  setSectionsAndRenderList(true);
 }
-function renderFields(data){
-  const tbody=document.querySelector("#fields-table tbody")
-  tbody.innerHTML=''
-  for(let k in data){
-    const tr=document.createElement("tr")
-    const tdKey=document.createElement("td"); tdKey.textContent=k
-    const tdVal=document.createElement("td")
-    const ul=document.createElement("ul")
-    data[k].forEach((v,i)=>{
-      const li=document.createElement("li")
-      li.textContent=showValues?v:'*'.repeat(8)
-      li.onclick=()=>openEditValueModal(k,i)
-      ul.appendChild(li)
-    })
-    const addBtn=document.createElement("button"); addBtn.textContent='+'; addBtn.className='small'
-    addBtn.onclick=()=>openAddValueModal(k)
-    tdVal.appendChild(ul); tdVal.appendChild(addBtn)
-    const tdActions=document.createElement("td")
-    const delField=document.createElement("button"); delField.textContent='Delete Field'; delField.className='small secondary'
-    delField.onclick=()=>deleteField(k)
-    tdActions.appendChild(delField)
-    tr.appendChild(tdKey); tr.appendChild(tdVal); tr.appendChild(tdActions)
-    tbody.appendChild(tr)
+async function refreshSectionsUntil(secName,expectedB64,timeoutMs=3000){
+  const start=Date.now();
+  while(Date.now()-start<timeoutMs){
+    const res=await axios.get(SERVER+"/sections",{headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}});
+    sections=res.data.data||{};
+    if(sections[secName]===expectedB64){setSectionsAndRenderList(true);return}
+    await new Promise(r=>setTimeout(r,200));
   }
+  setSectionsAndRenderList(true);
 }
-async function selectSection(name, li){
-  if(currentSection===name){
-    li.classList.toggle('active')
-    if(!li.classList.contains('active')){
-      document.getElementById('section-title').textContent='Select a Section'
-      document.querySelector('#fields-table tbody').innerHTML=''
-      currentSection=null
+document.getElementById("login-btn").onclick=async()=>{
+  const u=document.getElementById("login-username").value.trim();
+  const p=document.getElementById("login-password").value;
+  if(!u||!p) return;
+  try{
+    const res=await axios.post(SERVER+"/login",{username:u,password:p});
+    token=res.data.token;
+    localStorage.setItem("token",token);
+    showView("manager-view");
+    await refreshSections();
+  }catch(e){
+    const msg=e?.response?.data?.error||e?.message||"unknown";
+    alert("Login failed: "+msg);
+  }
+};
+document.getElementById("open-signup-btn").onclick=()=>showView("signup-view");
+document.getElementById("open-recover-btn").onclick=()=>showView("recover-view");
+document.getElementById("signup-btn").onclick=async()=>{
+  const u=document.getElementById("signup-username").value.trim();
+  const p=document.getElementById("signup-password").value;
+  if(!u||!p) return;
+  try{
+    const res=await axios.post(SERVER+"/signup",{username:u,password:p});
+    token=res.data.token;
+    localStorage.setItem("token",token);
+    if(Array.isArray(res.data.backup_codes)){
+      document.getElementById("backup-codes-text").value=res.data.backup_codes.join("\n");
+      document.getElementById("backup-codes-container").style.display="block";
+      document.getElementById("copy-codes-btn").onclick=()=>navigator.clipboard.writeText(res.data.backup_codes.join("\n"));
     }
-    return
+    showView("manager-view");
+    await refreshSections();
+  }catch(e){
+    const msg=e?.response?.data?.error||e?.message||"unknown";
+    alert("Sign up failed: "+msg);
   }
-  currentSection=name
-  document.getElementById('section-title').textContent=name
-  Array.from(document.getElementById('section-list').children).forEach(c=>c.classList.remove('active'))
-  li.classList.add('active')
-  const raw=sections[name]||btoa(JSON.stringify({}))
-  const data=JSON.parse(atob(raw))
-  renderFields(data)
+};
+document.getElementById("signup-done-btn").onclick=()=>showView("manager-view");
+document.getElementById("recover-btn").onclick=async()=>{
+  const code=document.getElementById("recover-code").value.trim();
+  if(!code) return;
+  try{
+    const res=await axios.post(SERVER+"/recover",{backupCode:code});
+    document.getElementById("recover-username").value=res.data.username||"";
+    document.getElementById("recover-password").value="";
+    document.getElementById("recover-result").style.display="block";
+    document.getElementById("recover-save-btn").onclick=async()=>{
+      const newU=document.getElementById("recover-username").value.trim();
+      const newP=document.getElementById("recover-password").value;
+      try{
+        await axios.post(SERVER+"/recover/edit",{backupCode:code,newUsername:newU,newPassword:newP});
+        alert("Saved");
+        showView("login-view");
+      }catch(e){
+        const msg=e?.response?.data?.error||e?.message||"unknown";
+        alert("Save failed: "+msg);
+      }
+    };
+    document.getElementById("recover-cancel-btn").onclick=()=>showView("login-view");
+  }catch(e){
+    const msg=e?.response?.data?.error||e?.message||"unknown";
+    alert("Invalid backup code: "+msg);
+  }
+};
+document.getElementById("logout-btn").onclick=()=>{token=null;localStorage.removeItem("token");showView("login-view")};
+function renderFields(data){
+  const tbody=document.querySelector("#fields-table tbody");
+  tbody.innerHTML="";
+  for(const k in data){
+    const tr=document.createElement("tr");
+    const tdKey=document.createElement("td");tdKey.textContent=k;
+    const tdVal=document.createElement("td");
+    const ul=document.createElement("ul");
+    data[k].forEach((v,i)=>{
+      const li=document.createElement("li");
+      li.textContent=showValues?v:"********";
+      li.onclick=()=>openEditValueModal(k,i);
+      ul.appendChild(li);
+    });
+    const addBtn=document.createElement("button");addBtn.textContent="+";addBtn.className="small";
+    addBtn.onclick=()=>openAddValueModal(k);
+    tdVal.appendChild(ul);tdVal.appendChild(addBtn);
+    const tdActions=document.createElement("td");
+    const delField=document.createElement("button");delField.textContent="Delete Field";delField.className="small secondary";
+    delField.onclick=()=>deleteField(k);
+    tdActions.appendChild(delField);
+    tr.appendChild(tdKey);tr.appendChild(tdVal);tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  }
+}
+async function selectSection(name,li){
+  if(currentSection===name){
+    li.classList.toggle("active");
+    if(!li.classList.contains("active")){
+      document.getElementById("section-title").textContent="Select a Section";
+      document.querySelector("#fields-table tbody").innerHTML="";
+      currentSection=null;
+    }
+    return;
+  }
+  currentSection=name;
+  document.getElementById("section-title").textContent=name;
+  Array.from(document.getElementById("section-list").children).forEach(c=>c.classList.remove("active"));
+  li.classList.add("active");
+  const raw=sections[name]||btoa(JSON.stringify({}));
+  const data=JSON.parse(atob(raw));
+  renderFields(data);
 }
 async function saveSection(name,data){
-  const cipher=btoa(JSON.stringify(data))
-  await axios.post(`${SERVER}/section`,{sectionName:name,ciphertext:cipher},{headers:{Authorization:`Bearer ${token}`}})
-  await refreshSections()
-  const item=Array.from(document.getElementById('section-list').children).find(li=>li.textContent===name)
-  if(item) selectSection(name,item)
-}
-document.getElementById('add-section-btn').onclick=()=>showModal('modal-add-section')
-document.getElementById('confirm-add-section').onclick=async()=>{
-  const name=document.getElementById('new-section-name').value
-  if(!name) return
-  await saveSection(name,{})
-  closeModal('modal-add-section')
-}
-document.getElementById('add-field-btn').onclick=()=>showModal('modal-add-field')
-document.getElementById('confirm-add-field').onclick=async()=>{
-  const key=document.getElementById('new-field-name').value
-  const val=document.getElementById('new-field-value').value
-  if(!key) return
-  const raw=sections[currentSection]||btoa(JSON.stringify({}))
-  const data=JSON.parse(atob(raw))
-  data[key]=val?[val]:[]
-  await saveSection(currentSection,data)
-  closeModal('modal-add-field')
-}
-document.getElementById('delete-section-btn').onclick=async()=>{
-  if(!currentSection) return
-  await axios.delete(`${SERVER}/section`,{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}})
-  currentSection=null
-  document.getElementById('section-title').textContent='Select a Section'
-  document.querySelector('#fields-table tbody').innerHTML=''
-  await refreshSections()
-}
-function openEditValueModal(field,idx){
-  editKey=field; editIndex=idx
-  const raw=sections[currentSection]||btoa(JSON.stringify({}))
-  const data=JSON.parse(atob(raw))
-  document.getElementById('edit-value-input').value=data[field][idx]
-  showModal('modal-edit-value')
-}
-document.getElementById('confirm-edit-value-btn').onclick=async()=>{
-  const v=document.getElementById('edit-value-input').value
-  const raw=sections[currentSection]||btoa(JSON.stringify({}))
-  const data=JSON.parse(atob(raw))
-  data[editKey][editIndex]=v
-  await saveSection(currentSection,data)
-  closeModal('modal-edit-value')
-}
-function openAddValueModal(field){
-  const input=document.createElement('input'); input.placeholder='New value'; input.style.marginBottom='8px'
-  const mm=document.createElement('div'); mm.className='modal-content'
-  mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`
-  mm.appendChild(input)
-  const add=document.createElement('button'); add.textContent='Add'; add.onclick=async()=>{
-    const v=input.value
-    if(!v) return
-    const raw=sections[currentSection]||btoa(JSON.stringify({}))
-    const data=JSON.parse(atob(raw))
-    data[field].push(v)
-    await saveSection(currentSection,data)
-    document.body.removeChild(overlay); await refreshSections()
+  const b64=btoa(JSON.stringify(data));
+  sections[name]=b64;
+  if(!Array.from(document.getElementById("section-list").children).some(li=>li.textContent===name)){
+    const li=document.createElement("li");li.textContent=name;li.onclick=()=>selectSection(name,li);document.getElementById("section-list").appendChild(li)
   }
-  const cancel=document.createElement('button'); cancel.textContent='Cancel'; cancel.className='small secondary'; cancel.onclick=()=>document.body.removeChild(overlay)
-  mm.appendChild(add); mm.appendChild(cancel)
-  const overlay=document.createElement('div'); overlay.style.position='fixed'; overlay.style.top=0; overlay.style.left=0; overlay.style.width='100%'; overlay.style.height='100%'; overlay.style.background='rgba(0,0,0,0.7)'; overlay.style.display='flex'; overlay.style.justifyContent='center'; overlay.style.alignItems='center'; overlay.appendChild(mm)
-  document.body.appendChild(overlay)
+  if(currentSection===name){
+    document.getElementById("section-title").textContent=name;
+    renderFields(data);
+  }
+  try{
+    await axios.post(SERVER+"/section",{sectionName:name,ciphertext:b64},{headers:{Authorization:`Bearer ${token}`}});
+  }catch(e){}
+  await refreshSectionsUntil(name,b64,3000);
+}
+document.getElementById("add-section-btn").onclick=()=>showModal("modal-add-section");
+document.getElementById("confirm-add-section").onclick=async()=>{
+  const name=document.getElementById("new-section-name").value.trim();
+  if(!name) return;
+  await saveSection(name,{});
+  document.getElementById("new-section-name").value="";
+  closeModal("modal-add-section");
+  const li=[...document.getElementById("section-list").children].find(x=>x.textContent===name);
+  if(li) selectSection(name,li);
+};
+document.getElementById("add-field-btn").onclick=()=>showModal("modal-add-field");
+document.getElementById("confirm-add-field").onclick=async()=>{
+  if(!currentSection) return;
+  const key=document.getElementById("new-field-name").value.trim();
+  const val=document.getElementById("new-field-value").value;
+  if(!key) return;
+  const raw=sections[currentSection]||btoa(JSON.stringify({}));
+  const data=JSON.parse(atob(raw));
+  if(!Array.isArray(data[key])) data[key]=[];
+  if(val) data[key].push(val);
+  await saveSection(currentSection,data);
+  document.getElementById("new-field-name").value="";
+  document.getElementById("new-field-value").value="";
+  closeModal("modal-add-field");
+};
+document.getElementById("delete-section-btn").onclick=async()=>{
+  if(!currentSection) return;
+  try{await axios.delete(SERVER+"/section",{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}})}catch(e){}
+  currentSection=null;
+  document.getElementById("section-title").textContent="Select a Section";
+  document.querySelector("#fields-table tbody").innerHTML="";
+  await refreshSections();
+};
+function openEditValueModal(field,idx){
+  editKey=field;editIndex=idx;
+  const raw=sections[currentSection]||btoa(JSON.stringify({}));
+  const data=JSON.parse(atob(raw));
+  document.getElementById("edit-value-input").value=data[field][idx];
+  showModal("modal-edit-value");
+}
+document.getElementById("confirm-edit-value-btn").onclick=async()=>{
+  const v=document.getElementById("edit-value-input").value;
+  const raw=sections[currentSection]||btoa(JSON.stringify({}));
+  const data=JSON.parse(atob(raw));
+  data[editKey][editIndex]=v;
+  await saveSection(currentSection,data);
+  closeModal("modal-edit-value");
+};
+function openAddValueModal(field){
+  const input=document.createElement("input");input.placeholder="New value";input.style.marginBottom="8px";
+  const mm=document.createElement("div");mm.className="modal-content";mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`;
+  mm.appendChild(input);
+  const add=document.createElement("button");add.textContent="Add";
+  const cancel=document.createElement("button");cancel.textContent="Cancel";cancel.className="small secondary";
+  const overlay=document.createElement("div");overlay.style.position="fixed";overlay.style.top=0;overlay.style.left=0;overlay.style.width="100%";overlay.style.height="100%";overlay.style.background="rgba(0,0,0,0.7)";overlay.style.display="flex";overlay.style.justifyContent="center";overlay.style.alignItems="center";overlay.appendChild(mm);
+  add.onclick=async()=>{
+    const v=input.value;
+    if(!v) return;
+    const raw=sections[currentSection]||btoa(JSON.stringify({}));
+    const data=JSON.parse(atob(raw));
+    if(!Array.isArray(data[field])) data[field]=[];
+    data[field].push(v);
+    await saveSection(currentSection,data);
+    document.body.removeChild(overlay);
+  };
+  cancel.onclick=()=>document.body.removeChild(overlay);
+  mm.appendChild(add);mm.appendChild(cancel);
+  document.body.appendChild(overlay);
 }
 async function deleteField(field){
-  const raw=sections[currentSection]||btoa(JSON.stringify({}))
-  const data=JSON.parse(atob(raw))
-  delete data[field]
-  await saveSection(currentSection,data)
+  const raw=sections[currentSection]||btoa(JSON.stringify({}));
+  const data=JSON.parse(atob(raw));
+  delete data[field];
+  await saveSection(currentSection,data);
 }
-document.getElementById('toggle-values').onchange=function(){showValues=this.checked;refreshSections()}
-fetchServer().then(requireLogin)
+document.getElementById("toggle-values").onchange=function(){
+  showValues=this.checked;
+  if(currentSection){
+    const raw=sections[currentSection]||btoa(JSON.stringify({}));
+    renderFields(JSON.parse(atob(raw)));
+  }else{
+    refreshSections();
+  }
+};
+async function requireLogin(){if(token){showView("manager-view");await refreshSections();return}showView("login-view")}
+fetchServer().then(requireLogin);
 </script>
 </body>
 </html>
