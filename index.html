@@ -20,7 +20,7 @@ button.small{padding:8px;width:auto;border-radius:6px}
 #section-list{list-style:none;padding:0;flex:1;overflow-y:auto;margin-bottom:12px}
 #section-list li{padding:10px;margin-bottom:8px;background:#0b1220;border-radius:8px;cursor:pointer;transition:all .12s;color:#cbd5e1;position:relative}
 #section-list li:hover,#section-list li.active{background:#15202b;transform:translateY(-1px)}
-.section-content{max-height:0;overflow:hidden;transition:max-height .3s ease;margin-top:6px}
+.section-content{max-height:0;overflow:hidden;transition:max-height .3s.ease;margin-top:6px}
 .main{flex:1;padding:24px;overflow:auto}
 #fields-table{width:100%;border-collapse:collapse;margin-bottom:12px}
 #fields-table th,#fields-table td{border:1px solid #1e293b;padding:10px;text-align:left;background:transparent}
@@ -140,37 +140,7 @@ let showValues=false;
 function showView(id){document.querySelectorAll('[id$="-view"]').forEach(v=>v.classList.add("hidden"));document.getElementById(id).classList.remove("hidden")}
 function showModal(id){document.getElementById(id).style.display="flex"}
 function closeModal(id){document.getElementById(id).style.display="none"}
-function setSectionsAndRenderList(preserve=true){
-  const list=document.getElementById("section-list");
-  const active=currentSection;
-  list.innerHTML="";
-  for(const sec in sections){
-    const li=document.createElement("li");
-    li.textContent=sec;
-    li.onclick=()=>selectSection(sec,li);
-    list.appendChild(li);
-    if(preserve&&sec===active){li.classList.add("active")}
-  }
-  if(preserve&&active&&sections[active]){
-    document.getElementById("section-title").textContent=active;
-    renderFields(JSON.parse(atob(sections[active])));
-  }
-}
-async function refreshSections(){
-  const res=await axios.get(SERVER+"/sections",{headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}});
-  sections=res.data.data||{};
-  setSectionsAndRenderList(true);
-}
-async function refreshSectionsUntil(secName,expectedB64,timeoutMs=3000){
-  const start=Date.now();
-  while(Date.now()-start<timeoutMs){
-    const res=await axios.get(SERVER+"/sections",{headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}});
-    sections=res.data.data||{};
-    if(sections[secName]===expectedB64){setSectionsAndRenderList(true);return}
-    await new Promise(r=>setTimeout(r,200));
-  }
-  setSectionsAndRenderList(true);
-}
+async function requireLogin(){if(token){showView("manager-view");await refreshSections();return}showView("login-view")}
 document.getElementById("login-btn").onclick=async()=>{
   const u=document.getElementById("login-username").value.trim();
   const p=document.getElementById("login-password").value;
@@ -236,6 +206,18 @@ document.getElementById("recover-btn").onclick=async()=>{
   }
 };
 document.getElementById("logout-btn").onclick=()=>{token=null;localStorage.removeItem("token");showView("login-view")};
+async function refreshSections(){
+  const res=await axios.get(SERVER+"/sections",{headers:{Authorization:`Bearer ${token}`,'Cache-Control':'no-cache','Pragma':'no-cache'},params:{_t:Date.now()}});
+  sections=res.data.data||{};
+  const list=document.getElementById("section-list");
+  list.innerHTML="";
+  for(const sec in sections){
+    const li=document.createElement("li");
+    li.textContent=sec;
+    li.onclick=()=>selectSection(sec,li);
+    list.appendChild(li);
+  }
+}
 function renderFields(data){
   const tbody=document.querySelector("#fields-table tbody");
   tbody.innerHTML="";
@@ -280,29 +262,18 @@ async function selectSection(name,li){
   renderFields(data);
 }
 async function saveSection(name,data){
-  const b64=btoa(JSON.stringify(data));
-  sections[name]=b64;
-  if(!Array.from(document.getElementById("section-list").children).some(li=>li.textContent===name)){
-    const li=document.createElement("li");li.textContent=name;li.onclick=()=>selectSection(name,li);document.getElementById("section-list").appendChild(li)
-  }
-  if(currentSection===name){
-    document.getElementById("section-title").textContent=name;
-    renderFields(data);
-  }
-  try{
-    await axios.post(SERVER+"/section",{sectionName:name,ciphertext:b64},{headers:{Authorization:`Bearer ${token}`}});
-  }catch(e){}
-  await refreshSectionsUntil(name,b64,3000);
+  const cipher=btoa(JSON.stringify(data));
+  await axios.post(SERVER+"/section",{sectionName:name,ciphertext:cipher},{headers:{Authorization:`Bearer ${token}`}});
+  await refreshSections();
+  const item=Array.from(document.getElementById("section-list").children).find(li=>li.textContent===name);
+  if(item) selectSection(name,item);
 }
 document.getElementById("add-section-btn").onclick=()=>showModal("modal-add-section");
 document.getElementById("confirm-add-section").onclick=async()=>{
   const name=document.getElementById("new-section-name").value.trim();
   if(!name) return;
   await saveSection(name,{});
-  document.getElementById("new-section-name").value="";
   closeModal("modal-add-section");
-  const li=[...document.getElementById("section-list").children].find(x=>x.textContent===name);
-  if(li) selectSection(name,li);
 };
 document.getElementById("add-field-btn").onclick=()=>showModal("modal-add-field");
 document.getElementById("confirm-add-field").onclick=async()=>{
@@ -312,16 +283,13 @@ document.getElementById("confirm-add-field").onclick=async()=>{
   if(!key) return;
   const raw=sections[currentSection]||btoa(JSON.stringify({}));
   const data=JSON.parse(atob(raw));
-  if(!Array.isArray(data[key])) data[key]=[];
-  if(val) data[key].push(val);
+  data[key]=val?[val]:[];
   await saveSection(currentSection,data);
-  document.getElementById("new-field-name").value="";
-  document.getElementById("new-field-value").value="";
   closeModal("modal-add-field");
 };
 document.getElementById("delete-section-btn").onclick=async()=>{
   if(!currentSection) return;
-  try{await axios.delete(SERVER+"/section",{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}})}catch(e){}
+  await axios.delete(SERVER+"/section",{headers:{Authorization:`Bearer ${token}`},data:{sectionName:currentSection}});
   currentSection=null;
   document.getElementById("section-title").textContent="Select a Section";
   document.querySelector("#fields-table tbody").innerHTML="";
@@ -343,24 +311,41 @@ document.getElementById("confirm-edit-value-btn").onclick=async()=>{
   closeModal("modal-edit-value");
 };
 function openAddValueModal(field){
-  const input=document.createElement("input");input.placeholder="New value";input.style.marginBottom="8px";
-  const mm=document.createElement("div");mm.className="modal-content";mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`;
+  const input=document.createElement("input");
+  input.placeholder="New value";
+  input.style.marginBottom="8px";
+  const mm=document.createElement("div");
+  mm.className="modal-content";
+  mm.innerHTML=`<h3 style="margin:0">Add Value</h3>`;
   mm.appendChild(input);
-  const add=document.createElement("button");add.textContent="Add";
-  const cancel=document.createElement("button");cancel.textContent="Cancel";cancel.className="small secondary";
-  const overlay=document.createElement("div");overlay.style.position="fixed";overlay.style.top=0;overlay.style.left=0;overlay.style.width="100%";overlay.style.height="100%";overlay.style.background="rgba(0,0,0,0.7)";overlay.style.display="flex";overlay.style.justifyContent="center";overlay.style.alignItems="center";overlay.appendChild(mm);
+  const add=document.createElement("button");
+  add.textContent="Add";
   add.onclick=async()=>{
     const v=input.value;
     if(!v) return;
     const raw=sections[currentSection]||btoa(JSON.stringify({}));
     const data=JSON.parse(atob(raw));
-    if(!Array.isArray(data[field])) data[field]=[];
     data[field].push(v);
     await saveSection(currentSection,data);
-    document.body.removeChild(overlay);
+    document.body.removeChild(overlay);await refreshSections();
   };
+  const cancel=document.createElement("button");
+  cancel.textContent="Cancel";
+  cancel.className="small secondary";
   cancel.onclick=()=>document.body.removeChild(overlay);
-  mm.appendChild(add);mm.appendChild(cancel);
+  mm.appendChild(add);
+  mm.appendChild(cancel);
+  const overlay=document.createElement("div");
+  overlay.style.position="fixed";
+  overlay.style.top=0;
+  overlay.style.left=0;
+  overlay.style.width="100%";
+  overlay.style.height="100%";
+  overlay.style.background="rgba(0,0,0,0.7)";
+  overlay.style.display="flex";
+  overlay.style.justifyContent="center";
+  overlay.style.alignItems="center";
+  overlay.appendChild(mm);
   document.body.appendChild(overlay);
 }
 async function deleteField(field){
@@ -378,7 +363,6 @@ document.getElementById("toggle-values").onchange=function(){
     refreshSections();
   }
 };
-async function requireLogin(){if(token){showView("manager-view");await refreshSections();return}showView("login-view")}
 fetchServer().then(requireLogin);
 </script>
 </body>
